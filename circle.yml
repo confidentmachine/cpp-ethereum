@@ -3,7 +3,7 @@ defaults:
   update-submodules: &update-submodules
     run:
       name: "Update git submodules"
-      command: git submodule update --init --depth 30
+      command: git submodule update --init --depth 20
 
   upload-hunter-cache: &upload-hunter-cache
     run:
@@ -35,7 +35,7 @@ defaults:
           export TMPDIR=/dev/shm
         fi
         export ETHEREUM_TEST_PATH=~/project/test/jsontests
-        ctest -j8 --output-on-failure
+        ctest --output-on-failure -j $TEST_PARALLEL_JOBS
 
   store-eth: &store-eth
     store_artifacts:
@@ -66,6 +66,12 @@ defaults:
       name: "Restore Ethash DAG file"
       key: *ethash-dag-key
 
+  upload-coverage-data: &upload-coverage-data
+    run:
+      name: "Upload coverage data"
+      pwd: build
+      command: codecov
+
   linux-steps: &linux-steps
     - checkout
     - *update-submodules
@@ -78,12 +84,8 @@ defaults:
     - *restore-ethash-dag
     - *test
     - *save-ethash-dag
+    - *upload-coverage-data
 
-    - run:
-        name: "Code coverage"
-        pwd: build
-        command: |
-          bash <(curl -s https://codecov.io/bash) -X fix
 
 version: 2
 jobs:
@@ -94,18 +96,22 @@ jobs:
       - CC:  clang-5.0
       - GENERATOR: Ninja
       - BUILD_PARALLEL_JOBS: 8
+      - TEST_PARALLEL_JOBS: 8
     docker:
       - image: ethereum/cpp-build-env
     steps: *linux-steps
 
-  Linux-GCC6-ASan:
+  Linux-GCC6-Debug:
     environment:
       - BUILD_TYPE: Debug
       - CXX: g++-6
       - CC:  gcc-6
       - GENERATOR: Ninja
       - BUILD_PARALLEL_JOBS: 4
-      - CMAKE_OPTIONS: -DSANITIZE=address
+      - TEST_PARALLEL_JOBS: 4
+      # TODO: Fix memory leaks reported in leveldb.
+      # - CMAKE_OPTIONS: -DSANITIZE=address
+      # - ASAN_OPTIONS: detect_leaks=0
     docker:
       - image: ethereum/cpp-build-env
     steps: *linux-steps
@@ -114,6 +120,7 @@ jobs:
     environment:
       - GENERATOR: Ninja
       - BUILD_PARALLEL_JOBS: 8
+      - TEST_PARALLEL_JOBS: 8
     macos:
       xcode: "9.0"
     steps:
@@ -134,10 +141,7 @@ jobs:
       - *restore-ethash-dag
       - *test
       - *save-ethash-dag
-      - run:
-          name: "Upload coverage data"
-          pwd: build
-          command: codecov
+      - *upload-coverage-data
 
 # TODO: Run GCC6 build only in develop branch.
 # TODO: Enabled nightly builds and add more configs.
@@ -148,4 +152,4 @@ workflows:
     jobs:
       - macOS-XCode9
       - Linux-Clang5
-      - Linux-GCC6-ASan
+      - Linux-GCC6-Debug
