@@ -35,6 +35,8 @@ defaults:
           export TMPDIR=/dev/shm
         fi
         export ETHEREUM_TEST_PATH=~/project/test/jsontests
+        eth/eth --version
+        test/testeth -t 'Crypto/*'
         ctest --output-on-failure -j $TEST_PARALLEL_JOBS
 
   store-eth: &store-eth
@@ -45,7 +47,7 @@ defaults:
   save-deps-cache: &save-deps-cache
     cache-save:
       name: "Save dependencies cache"
-      key: &deps-cache-key deps-1-{{arch}}-{{checksum "build/compiler"}}-{{checksum "cmake/ProjectJsonRpcCpp.cmake"}}
+      key: &deps-cache-key deps-2-{{arch}}-{{checksum "build/compiler"}}-{{checksum "cmake/ProjectJsonRpcCpp.cmake"}}
       paths:
         - build/deps
 
